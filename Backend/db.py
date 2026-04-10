@@ -1,13 +1,92 @@
 import mysql.connector
+from mysql.connector import Error
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
-def get_connection():
+def get_connection(include_db=True):
+    """Connects to MySQL. set include_db=False to connect to the server only."""
     return mysql.connector.connect(
         host=os.getenv("DB_HOST"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME")
+        database=os.getenv("DB_NAME") if include_db else None
     )
+
+def setup_database():
+    try:
+        # Connect to the MySQL server (not the DB) to create the DB first
+        conn = get_connection(include_db=False)
+        cursor = conn.cursor()
+        
+        cursor.execute("CREATE DATABASE IF NOT EXISTS hrms")
+        print("Database 'hrms' verified/created.")
+        
+        # Switch to the newly created database
+        cursor.execute("USE hrms")
+
+        # Define the Table Schemas
+        queries = [
+            """
+            CREATE TABLE IF NOT EXISTS employees (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                email VARCHAR(100) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                role ENUM('employee', 'manager', 'hr', 'admin') DEFAULT 'employee',
+                department VARCHAR(100),
+                salary DECIMAL(10, 2) DEFAULT 0.00
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS attendance (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                employee_id INT NOT NULL,
+                date DATE NOT NULL,
+                check_in DATETIME,
+                status VARCHAR(20) DEFAULT 'present',
+                FOREIGN KEY (employee_id) REFERENCES employees(id)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS leaves (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                employee_id INT NOT NULL,
+                leave_type VARCHAR(50),
+                start_date DATE,
+                end_date DATE,
+                reason TEXT,
+                status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (employee_id) REFERENCES employees(id)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS payroll (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                employee_id INT NOT NULL,
+                month INT NOT NULL,
+                year INT NOT NULL,
+                basic_salary DECIMAL(10, 2),
+                deductions DECIMAL(10, 2),
+                net_salary DECIMAL(10, 2),
+                FOREIGN KEY (employee_id) REFERENCES employees(id)
+            )
+            """
+        ]
+
+        for query in queries:
+            cursor.execute(query)
+        
+        print("Tables created successfully.")
+        
+    except Error as e:
+        print(f"Error: {e}")
+    finally:
+        if conn.is_connected():
+            cursor.close()
+            conn.close()
+
+if __name__ == "__main__":
+    setup_database()
