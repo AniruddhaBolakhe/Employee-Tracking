@@ -189,3 +189,31 @@ def get_overtime_summary(employee_id: int, month: int, year: int, current_user: 
         "total_overtime_hours": float(total),
         "breakdown": records
     }
+
+
+#us13
+
+@router.get("/report/monthly")
+def get_monthly_attendance_report(current_user: dict = Depends(get_current_user)):
+    # Check if admin or hr:
+    if current_user.get("role") not in ("hr", "admin"):
+        raise HTTPException(status_code=403, detail="Access denied. HR or Admin only.")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # call the view
+        cursor.execute("SELECT * FROM monthly_attendance_report ORDER BY year DESC, month DESC, total_days_present DESC")
+        report = cursor.fetchall()
+        
+        return {
+            "status": "success",
+            "report_generated_at": datetime.now(),
+            "data": report
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
