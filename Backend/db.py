@@ -78,6 +78,40 @@ def setup_database():
                 FOREIGN KEY (employee_id) REFERENCES employees(id)
             )
             """,
+            #US-12-attendace_log
+              """
+            CREATE TABLE IF NOT EXISTS attendance_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            attendance_id INT,
+            action_type VARCHAR(50), 
+            log_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            #Trigger for the log
+            """
+           CREATE TRIGGER IF NOT EXISTS after_attendance_insert
+           AFTER INSERT ON attendance
+           FOR EACH ROW
+           BEGIN
+          INSERT INTO attendance_logs (attendance_id, action_type)
+            VALUES (NEW.id, 'INSERT');
+            END;
+             """,
+
+        # US-13: Monthly Attendance View
+        """
+        CREATE OR REPLACE VIEW monthly_attendance_report AS
+        SELECT 
+            e.id AS employee_id,
+            e.name AS employee_name,
+            MONTH(a.date) AS month,
+            YEAR(a.date) AS year,
+            COUNT(a.id) AS total_days_present
+        FROM employees e
+        JOIN attendance a ON e.id = a.employee_id
+        WHERE a.status = 'present'
+        GROUP BY e.id, e.name, MONTH(a.date), YEAR(a.date);
+        """
         ]
 
         for query in queries:
