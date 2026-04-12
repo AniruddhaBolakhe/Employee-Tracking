@@ -73,7 +73,26 @@ def setup_database():
                 net_salary DECIMAL(10, 2),
                 FOREIGN KEY (employee_id) REFERENCES employees(id)
             )
+            """,
+            #US-12-attendace_log
+              """
+            CREATE TABLE IF NOT EXISTS attendance_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            attendance_id INT,
+            action_type VARCHAR(50), 
+            log_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            #Trigger for the log
             """
+           CREATE TRIGGER IF NOT EXISTS after_attendance_insert
+           AFTER INSERT ON attendance
+           FOR EACH ROW
+           BEGIN
+          INSERT INTO attendance_logs (attendance_id, action_type)
+            VALUES (NEW.id, 'INSERT');
+            END;
+             """
         ]
 
         for query in queries:
