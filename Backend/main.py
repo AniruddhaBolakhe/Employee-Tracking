@@ -12,8 +12,8 @@ app = FastAPI(title="HRMS API")
 # Allow the frontend (Azure Static Web Apps) to call this backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # replace * with your Static Web App URL after deployment
-    allow_credentials=True,
+    allow_origins=["https://delightful-river-071a00600.7.azurestaticapps.net"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

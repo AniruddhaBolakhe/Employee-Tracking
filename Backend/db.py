@@ -19,15 +19,17 @@ def setup_database():
     conn = None
     cursor = None
     try:
+        db_name = os.getenv("DB_NAME")  # ← fixed
+
         # Connect to the MySQL server (not the DB) to create the DB first
         conn = get_connection(include_db=False)
         cursor = conn.cursor()
         
-        cursor.execute("CREATE DATABASE IF NOT EXISTS hrms")
-        print("Database 'hrms' verified/created.")
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")  # ← fixed
+        print(f"Database '{db_name}' verified/created.")
         
         # Switch to the newly created database
-        cursor.execute("USE hrms")
+        cursor.execute(f"USE {db_name}")  # ← fixed
 
         # Define the Table Schemas
         queries = [
@@ -53,7 +55,7 @@ def setup_database():
                 status VARCHAR(20) DEFAULT 'present',
                 FOREIGN KEY (employee_id) REFERENCES employees(id)
             )
-""",
+            """,
             """
             CREATE TABLE IF NOT EXISTS leaves (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -81,54 +83,48 @@ def setup_database():
                 FOREIGN KEY (employee_id) REFERENCES employees(id)
             )
             """,
-            #US-12-attendace_log
-              """
+            """
             CREATE TABLE IF NOT EXISTS attendance_logs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            attendance_id INT,
-            action_type VARCHAR(50), 
-            log_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                attendance_id INT,
+                action_type VARCHAR(50),
+                log_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """,
-            #Trigger for the log
             """
-           CREATE TRIGGER IF NOT EXISTS after_attendance_insert
-           AFTER INSERT ON attendance
-           FOR EACH ROW
-           BEGIN
-          INSERT INTO attendance_logs (attendance_id, action_type)
-            VALUES (NEW.id, 'INSERT');
+            CREATE TRIGGER IF NOT EXISTS after_attendance_insert
+            AFTER INSERT ON attendance
+            FOR EACH ROW
+            BEGIN
+                INSERT INTO attendance_logs (attendance_id, action_type)
+                VALUES (NEW.id, 'INSERT');
             END;
-             """,
-
-        # US-13: Monthly Attendance View
-        """
-        CREATE OR REPLACE VIEW monthly_attendance_report AS
-        SELECT 
-            e.id AS employee_id,
-            e.name AS employee_name,
-            MONTH(a.date) AS month,
-            YEAR(a.date) AS year,
-            COUNT(a.id) AS total_days_present
-        FROM employees e
-        JOIN attendance a ON e.id = a.employee_id
-        WHERE a.status = 'present'
-        GROUP BY e.id, e.name, MONTH(a.date), YEAR(a.date);
-        """,
-
-        # US-14: Attendance Ranking (Leaderboard)
-        """
-        CREATE OR REPLACE VIEW attendance_ranking AS
-        SELECT 
-            e.id AS employee_id,
-            e.name AS employee_name,
-            COUNT(a.id) AS total_days,
-            RANK() OVER (ORDER BY COUNT(a.id) DESC) as rank_position
-        FROM employees e
-        JOIN attendance a ON e.id = a.employee_id
-        WHERE a.status = 'present'
-        GROUP BY e.id, e.name;
-        """
+            """,
+            """
+            CREATE OR REPLACE VIEW monthly_attendance_report AS
+            SELECT 
+                e.id AS employee_id,
+                e.name AS employee_name,
+                MONTH(a.date) AS month,
+                YEAR(a.date) AS year,
+                COUNT(a.id) AS total_days_present
+            FROM employees e
+            JOIN attendance a ON e.id = a.employee_id
+            WHERE a.status = 'present'
+            GROUP BY e.id, e.name, MONTH(a.date), YEAR(a.date);
+            """,
+            """
+            CREATE OR REPLACE VIEW attendance_ranking AS
+            SELECT 
+                e.id AS employee_id,
+                e.name AS employee_name,
+                COUNT(a.id) AS total_days,
+                RANK() OVER (ORDER BY COUNT(a.id) DESC) as rank_position
+            FROM employees e
+            JOIN attendance a ON e.id = a.employee_id
+            WHERE a.status = 'present'
+            GROUP BY e.id, e.name;
+            """
         ]
 
         for query in queries:
